@@ -1,4 +1,4 @@
-const ddbGeo = require('dynamodb-geo');
+const ddbGeo = require('dynamodb-documentclient-geo');
 const AWS = require('aws-sdk');
 const uuid = require('uuid');
 
@@ -10,7 +10,7 @@ AWS.config.update({
 });
 
 // Use a local DB for the example.
-const ddb = new AWS.DynamoDB({ endpoint: new AWS.Endpoint('http://localhost:8000') });
+const ddb = new AWS.DynamoDB.DocumentClient({ endpoint: new AWS.Endpoint('http://localhost:8000') });
 
 // Configuration for a new instance of a GeoDataManager. Each GeoDataManager instance represents a table
 const config = new ddbGeo.GeoDataManagerConfiguration(ddb, 'capitals');
@@ -37,15 +37,15 @@ ddb.createTable(createTableInput).promise()
         const data = require('./capitals.json');
         const putPointInputs = data.map(function (capital) {
             return {
-                RangeKeyValue: { S: uuid.v4() }, // Use this to ensure uniqueness of the hash/range pairs.
+                RangeKeyValue: uuid.v4(), // Use this to ensure uniqueness of the hash/range pairs.
                 GeoPoint: {
                     latitude: capital.latitude,
                     longitude: capital.longitude
                 },
                 PutItemInput: {
                     Item: {
-                        country: { S: capital.country },
-                        capital: { S: capital.capital }
+                        country: capital.country,
+                        capital: capital.capital
                     }
                 }
             }

@@ -56,12 +56,12 @@ export class GeoDataManagerConfiguration {
    */
   geoJsonPointType: 'Point' | 'POINT' = 'Point';
 
-  dynamoDBClient: DynamoDB;
+  documentClient: DynamoDB.DocumentClient;
 
   S2RegionCoverer: typeof S2RegionCoverer;
 
-  constructor(dynamoDBClient, tableName: string) {
-    this.dynamoDBClient = dynamoDBClient;
+  constructor(documentClient, tableName: string) {
+    this.documentClient = documentClient;
     this.tableName = tableName;
     this.S2RegionCoverer = S2RegionCoverer;
   }

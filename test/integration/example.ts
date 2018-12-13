@@ -11,9 +11,10 @@ AWS.config.update({
 describe('Example', function () {
   // Use a local DB for the example.
   const ddb = new AWS.DynamoDB({ endpoint: 'http://127.0.0.1:8000' });
+  const ddbDocumentClient = new AWS.DynamoDB.DocumentClient({service: ddb});
 
   // Configuration for a new instance of a GeoDataManager. Each GeoDataManager instance represents a table
-  const config = new ddbGeo.GeoDataManagerConfiguration(ddb, 'test-capitals');
+  const config = new ddbGeo.GeoDataManagerConfiguration(ddbDocumentClient, 'test-capitals');
 
   // Instantiate the table manager
   const capitalsManager = new ddbGeo.GeoDataManager(config);
@@ -31,19 +32,19 @@ describe('Example', function () {
     await ddb.waitFor('tableExists', { TableName: config.tableName }).promise()
     // Load sample data in batches
 
-    console.log('Loading sample data from capitals.json');
+    console.dir('Loading sample data from capitals.json');
     const data = require('../../example/capitals.json');
     const putPointInputs = data.map(function (capital, i) {
       return {
-        RangeKeyValue: { S: String(i) }, // Use this to ensure uniqueness of the hash/range pairs.
+        RangeKeyValue: i.toString(10), // Use this to ensure uniqueness of the hash/range pairs.
         GeoPoint: {
           latitude: capital.latitude,
           longitude: capital.longitude
         },
         PutItemInput: {
           Item: {
-            country: { S: capital.country },
-            capital: { S: capital.capital }
+            country: capital.country,
+            capital: capital.capital
           }
         }
       }
@@ -83,12 +84,12 @@ describe('Example', function () {
     });
 
     expect(result).to.deep.equal([{
-      rangeKey: { S: '50' },
-      country: { S: 'United Kingdom' },
-      capital: { S: 'London' },
-      hashKey: { N: '522' },
-      geoJson: { S: '{"type":"Point","coordinates":[-0.13,51.51]}' },
-      geohash: { N: '5221366118452580119' }
+      rangeKey: "50",
+      country: 'United Kingdom',
+      capital: 'London',
+      hashKey: 522,
+      geoJson: '{"type":"Point","coordinates":[-0.13,51.51]}',
+      geohash: 5221366118452580000
     }]);
   });
 
