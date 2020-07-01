@@ -93,6 +93,30 @@ describe('Example', function () {
     }]);
   });
 
+  it('queryRectangle', async function () {
+    this.timeout(20000);
+    // Perform a rectangle query
+    const result = await capitalsManager.queryRectangle({
+      MinPoint: {
+        latitude: 50.30000,
+        longitude: -2.001
+      },
+      MaxPoint: {
+        latitude: 51.80000,
+        longitude: 2.001
+      }
+    })
+
+    expect(result).to.deep.equal([{
+      rangeKey: "50",
+      country: 'United Kingdom',
+      capital: 'London',
+      hashKey: 522,
+      geoJson: '{"type":"Point","coordinates":[-0.13,51.51]}',
+      geohash: 5221366118452580000
+    }]);
+  });
+
   after(async function () {
     this.timeout(10000);
     await ddb.deleteTable({ TableName: config.tableName }).promise()
