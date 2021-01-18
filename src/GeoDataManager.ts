@@ -354,7 +354,7 @@ export class GeoDataManager {
     const latLngRect: S2LatLngRect = S2Util.latLngRectFromQueryRectangleInput(geoQueryInput);
 
     return list.filter(item => {
-      const geoJson: string = item[this.config.geoJsonAttributeName].S;
+      const geoJson: string = item[this.config.geoJsonAttributeName];
       const coordinates = JSON.parse(geoJson).coordinates;
       const longitude = coordinates[this.config.longitudeFirst ? 0 : 1];
       const latitude = coordinates[this.config.longitudeFirst ? 1 : 0];
