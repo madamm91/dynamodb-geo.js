@@ -4,6 +4,40 @@ import { S2Util } from "../../src/s2/S2Util";
 import { Covering } from "../../src/model/Covering";
 
 describe('Appropriate hash key lengths', function () {
+    it('1ft radius', function () {
+        const cov = new Covering(new S2RegionCoverer().getCoveringCells(S2Util.getBoundingLatLngRectFromQueryRadiusInput({
+            RadiusInMeter: 0.3048,
+            CenterPoint: {
+                latitude: 59,
+                longitude: 0
+            }
+        })));
+
+        expect(cov.getNumberOfCells()).to.equal(8);
+        expect(cov.getGeoHashRanges(10)).length(8);
+        expect(cov.getGeoHashRanges(11)).length(8); 
+        expect(cov.getGeoHashRanges(12)).length(8); 
+        expect(cov.getGeoHashRanges(13)).length(8); 
+        expect(cov.getGeoHashRanges(14)).length(8); // Recommend hashKeyLength = 14 for 1ft radius searches
+        expect(cov.getGeoHashRanges(15)).length(11);
+        expect(cov.getGeoHashRanges(16)).length(31);
+    });    
+    it('1m radius', function () {
+        const cov = new Covering(new S2RegionCoverer().getCoveringCells(S2Util.getBoundingLatLngRectFromQueryRadiusInput({
+            RadiusInMeter: 1,
+            CenterPoint: {
+                latitude: 59,
+                longitude: 0
+            }
+        })));
+
+        expect(cov.getNumberOfCells()).to.equal(8);
+        expect(cov.getGeoHashRanges(10)).length(8);
+        expect(cov.getGeoHashRanges(11)).length(8); 
+        expect(cov.getGeoHashRanges(12)).length(8); 
+        expect(cov.getGeoHashRanges(13)).length(8); // Recommend hashKeyLength = 13 for 1m radius searches
+        expect(cov.getGeoHashRanges(14)).length(12);
+    });    
     it('10m radius', function () {
         const cov = new Covering(new S2RegionCoverer().getCoveringCells(S2Util.getBoundingLatLngRectFromQueryRadiusInput({
             RadiusInMeter: 10,

@@ -29,7 +29,7 @@ import {
 import { S2Manager } from "../s2/S2Manager";
 import { GeohashRange } from "../model/GeohashRange";
 import * as Long from "long";
-import { PutItemInput, PutRequest } from "aws-sdk/clients/dynamodb";
+
 
 export class DynamoDBManager {
   private config: GeoDataManagerConfiguration;
@@ -50,19 +50,19 @@ export class DynamoDBManager {
    *
    * @return The query result.
    */
-  public async queryGeohash(queryInput: DynamoDB.QueryInput | undefined, hashKey: Long, range: GeohashRange): Promise<DynamoDB.QueryOutput[]> {
+  public async queryGeohash(queryInput: DynamoDB.DocumentClient.QueryInput | undefined, hashKey: Long, range: GeohashRange): Promise<DynamoDB.DocumentClient.QueryOutput[]> {
     const queryOutputs: DynamoDB.QueryOutput[] = [];
 
     const nextQuery = async (lastEvaluatedKey: DynamoDB.Key = null) => {
-      const keyConditions: { [key: string]: DynamoDB.Condition } = {};
+      const keyConditions: { [key: string]: DynamoDB.DocumentClient.Condition } = {};
 
       keyConditions[this.config.hashKeyAttributeName] = {
         ComparisonOperator: "EQ",
-        AttributeValueList: [{ N: hashKey.toString(10) }]
+        AttributeValueList: [parseFloat(hashKey.toString(10))]
       };
 
-      const minRange: DynamoDB.AttributeValue = { N: range.rangeMin.toString(10) };
-      const maxRange: DynamoDB.AttributeValue = { N: range.rangeMax.toString(10) };
+      const minRange: DynamoDB.DocumentClient.AttributeValue = parseFloat(range.rangeMin.toString(10));
+      const maxRange: DynamoDB.DocumentClient.AttributeValue = parseFloat(range.rangeMax.toString(10));
 
       keyConditions[this.config.geohashAttributeName] = {
         ComparisonOperator: "BETWEEN",
@@ -78,7 +78,7 @@ export class DynamoDBManager {
         ExclusiveStartKey: lastEvaluatedKey
       };
 
-      const queryOutput = await this.config.dynamoDBClient.query({ ...defaults, ...queryInput }).promise();
+      const queryOutput = await this.config.documentClient.query({ ...defaults, ...queryInput }).promise();
       queryOutputs.push(queryOutput);
       if (queryOutput.LastEvaluatedKey) {
         return nextQuery(queryOutput.LastEvaluatedKey);
@@ -97,35 +97,33 @@ export class DynamoDBManager {
     getItemInput.TableName = this.config.tableName;
 
     getItemInput.Key = {
-      [this.config.hashKeyAttributeName]: { N: hashKey.toString(10) },
+      [this.config.hashKeyAttributeName]: parseFloat(hashKey.toString(10)),
       [this.config.rangeKeyAttributeName]: getPointInput.RangeKeyValue
     };
 
-    return this.config.dynamoDBClient.getItem(getItemInput);
+    return this.config.documentClient.get(getItemInput);
   }
 
   public putPoint(putPointInput: PutPointInput): Request<PutPointOutput, AWSError> {
     const geohash = S2Manager.generateGeohash(putPointInput.GeoPoint);
     const hashKey = S2Manager.generateHashKey(geohash, this.config.hashKeyLength);
-    const putItemInput: PutItemInput = {
+    const putItemInput: DynamoDB.DocumentClient.PutItemInput = {
       ...putPointInput.PutItemInput,
       TableName: this.config.tableName,
       Item: putPointInput.PutItemInput.Item || {}
     };
 
-    putItemInput.Item[this.config.hashKeyAttributeName] = { N: hashKey.toString(10) };
+    putItemInput.Item[this.config.hashKeyAttributeName] = parseFloat(hashKey.toString(10));
     putItemInput.Item[this.config.rangeKeyAttributeName] = putPointInput.RangeKeyValue;
-    putItemInput.Item[this.config.geohashAttributeName] = { N: geohash.toString(10) };
-    putItemInput.Item[this.config.geoJsonAttributeName] = {
-      S: JSON.stringify({
+    putItemInput.Item[this.config.geohashAttributeName] = parseFloat(geohash.toString(10));
+    putItemInput.Item[this.config.geoJsonAttributeName] = JSON.stringify({
         type: this.config.geoJsonPointType,
         coordinates: (this.config.longitudeFirst ?
           [putPointInput.GeoPoint.longitude, putPointInput.GeoPoint.latitude] :
           [putPointInput.GeoPoint.latitude, putPointInput.GeoPoint.longitude])
-      })
-    };
+      });
 
-    return this.config.dynamoDBClient.putItem(putItemInput);
+    return this.config.documentClient.put(putItemInput);
   }
 
 
@@ -137,26 +135,23 @@ export class DynamoDBManager {
       const hashKey = S2Manager.generateHashKey(geohash, this.config.hashKeyLength);
       const putItemInput = putPointInput.PutItemInput;
 
-      const putRequest: PutRequest = {
+      const putRequest: DynamoDB.DocumentClient.PutRequest = {
         Item: putItemInput.Item || {}
       };
 
-      putRequest.Item[this.config.hashKeyAttributeName] = { N: hashKey.toString(10) };
+      putRequest.Item[this.config.hashKeyAttributeName] = parseFloat(hashKey.toString(10));
       putRequest.Item[this.config.rangeKeyAttributeName] = putPointInput.RangeKeyValue;
-      putRequest.Item[this.config.geohashAttributeName] = { N: geohash.toString(10) };
-      putRequest.Item[this.config.geoJsonAttributeName] = {
-        S: JSON.stringify({
+      putRequest.Item[this.config.geohashAttributeName] = parseFloat(geohash.toString(10));
+      putRequest.Item[this.config.geoJsonAttributeName] = JSON.stringify({
           type: this.config.geoJsonPointType,
           coordinates: (this.config.longitudeFirst ?
             [putPointInput.GeoPoint.longitude, putPointInput.GeoPoint.latitude] :
             [putPointInput.GeoPoint.latitude, putPointInput.GeoPoint.longitude])
-        })
-      };
-
+        });
       writeInputs.push({ PutRequest: putRequest });
     });
 
-    return this.config.dynamoDBClient.batchWriteItem({
+    return this.config.documentClient.batchWrite({
       RequestItems: {
         [this.config.tableName]: writeInputs
       }
@@ -173,7 +168,7 @@ export class DynamoDBManager {
       updatePointInput.UpdateItemInput.Key = {};
     }
 
-    updatePointInput.UpdateItemInput.Key[this.config.hashKeyAttributeName] = { N: hashKey.toString(10) };
+    updatePointInput.UpdateItemInput.Key[this.config.hashKeyAttributeName] = parseFloat(hashKey.toString(10));
     updatePointInput.UpdateItemInput.Key[this.config.rangeKeyAttributeName] = updatePointInput.RangeKeyValue;
 
     // Geohash and geoJson cannot be updated.
@@ -182,18 +177,18 @@ export class DynamoDBManager {
       delete updatePointInput.UpdateItemInput.AttributeUpdates[this.config.geoJsonAttributeName];
     }
 
-    return this.config.dynamoDBClient.updateItem(updatePointInput.UpdateItemInput);
+    return this.config.documentClient.update(updatePointInput.UpdateItemInput);
   }
 
   public deletePoint(deletePointInput: DeletePointInput): Request<DeletePointOutput, AWSError> {
     const geohash = S2Manager.generateGeohash(deletePointInput.GeoPoint);
     const hashKey = S2Manager.generateHashKey(geohash, this.config.hashKeyLength);
 
-    return this.config.dynamoDBClient.deleteItem({
+    return this.config.documentClient.delete({
       ...deletePointInput.DeleteItemInput,
       TableName: this.config.tableName,
       Key: {
-        [this.config.hashKeyAttributeName]: { N: hashKey.toString(10) },
+        [this.config.hashKeyAttributeName]: parseFloat(hashKey.toString(10)),
         [this.config.rangeKeyAttributeName]: deletePointInput.RangeKeyValue
       }
     });
